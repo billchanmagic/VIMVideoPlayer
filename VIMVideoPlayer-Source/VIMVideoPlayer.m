@@ -45,7 +45,6 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
 
 @property (nonatomic, assign, getter=isPlaying, readwrite) BOOL playing;
 @property (nonatomic, assign, getter=isScrubbing) BOOL scrubbing;
-@property (nonatomic, assign, getter=isSeeking) BOOL seeking;
 @property (nonatomic, assign) BOOL isAtEndTime;
 @property (nonatomic, assign) BOOL shouldPlayAfterScrubbing;
 
@@ -83,7 +82,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
         [self setupPlayer];
         
         [self addPlayerObservers];
-
+        
         [self setupAudioSession];
     }
     
@@ -129,9 +128,9 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         return;
     }
-
+    
     [self resetPlayerItemIfNecessary];
-
+    
     AVPlayerItem *playerItem = [[AVPlayerItem alloc] initWithURL:URL];
     if (!playerItem)
     {
@@ -139,7 +138,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
         
         return;
     }
-
+    
     [self preparePlayerItem:playerItem];
 }
 
@@ -151,7 +150,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     }
     
     [self resetPlayerItemIfNecessary];
-
+    
     [self preparePlayerItem:playerItem];
 }
 
@@ -161,7 +160,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         return;
     }
-
+    
     [self resetPlayerItemIfNecessary];
     
     AVPlayerItem *playerItem = [[AVPlayerItem alloc] initWithAsset:asset automaticallyLoadedAssetKeys:@[NSStringFromSelector(@selector(tracks))]];
@@ -200,7 +199,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     }
     
     self.playing = YES;
-   
+    
     if ([self.player.currentItem status] == AVPlayerItemStatusReadyToPlay)
     {
         if ([self isAtEndTime])
@@ -221,7 +220,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     [self.player pause];
 }
 
-- (void)seekToTime:(float)time
+- (void)seekToTime:(float)time completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0)
 {
     if (_seeking)
     {
@@ -245,15 +244,24 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
                 
                 _isAtEndTime = NO;
                 _seeking = NO;
-
+                
                 if (finished)
                 {
                     _scrubbing = NO;
                 }
                 
+                if (completionHandler)
+                {
+                    completionHandler(finished);
+                }
             }];
         });
     }
+}
+
+- (void)seekToTime:(float)time
+{
+    [self seekToTime:time completionHandler:nil];
 }
 
 - (void)reset
@@ -294,7 +302,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     if (self.isPlaying)
     {
         self.shouldPlayAfterScrubbing = YES;
-
+        
         [self pause];
     }
 }
@@ -316,10 +324,10 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     if (self.shouldPlayAfterScrubbing)
     {
         [self play];
-
+        
         self.shouldPlayAfterScrubbing = NO;
     }
-
+    
     self.scrubbing = NO;
 }
 
@@ -444,14 +452,11 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
 {
     [self.player seekToTime:kCMTimeZero toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
         
-        if (finished)
+        _isAtEndTime = NO;
+        
+        if (self.isPlaying)
         {
-            _isAtEndTime = NO;
-         
-            if (self.isPlaying)
-            {
-                [self play];
-            }
+            [self play];
         }
         
     }];
@@ -595,7 +600,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         NSLog(@"Exception removing observer: %@", exception);
     }
-
+    
     @try
     {
         [playerItem removeObserver:self
@@ -606,7 +611,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         NSLog(@"Exception removing observer: %@", exception);
     }
-
+    
     @try
     {
         [playerItem removeObserver:self
@@ -617,7 +622,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         NSLog(@"Exception removing observer: %@", exception);
     }
-
+    
     @try
     {
         [playerItem removeObserver:self
@@ -664,7 +669,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         return;
     }
- 
+    
     if (self.player)
     {
         [self.player removeTimeObserver:self.timeObserverToken];
@@ -730,7 +735,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
                     }
                     
                     [self reset];
-
+                    
                     if ([self.delegate respondsToSelector:@selector(videoPlayer:didFailWithError:)])
                     {
                         dispatch_async(dispatch_get_main_queue(), ^{
@@ -749,9 +754,9 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
             if ([self.delegate respondsToSelector:@selector(videoPlayerPlaybackLikelyToKeepUp:)])
             {
                 dispatch_async(dispatch_get_main_queue(), ^
-                {
-                    [self.delegate videoPlayerPlaybackLikelyToKeepUp:self];
-                });
+                               {
+                                   [self.delegate videoPlayerPlaybackLikelyToKeepUp:self];
+                               });
             }
         }
     }
@@ -762,12 +767,12 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
             if (self.isPlaying)
             {
                 dispatch_async(dispatch_get_main_queue(), ^
-                {
-                    if ([self.delegate respondsToSelector:@selector(videoPlayerPlaybackBufferEmpty:)])
-                    {
-                        [self.delegate videoPlayerPlaybackBufferEmpty:self];
-                    }
-                });
+                               {
+                                   if ([self.delegate respondsToSelector:@selector(videoPlayerPlaybackBufferEmpty:)])
+                                   {
+                                       [self.delegate videoPlayerPlaybackBufferEmpty:self];
+                                   }
+                               });
             }
         }
     }
@@ -776,7 +781,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
         if (self.player.currentItem.playbackLikelyToKeepUp)
         {
             // TODO: Hide loading indicator
-
+            
             if (self.isScrubbing == NO && self.isPlaying && self.player.rate == 0.0f)
             {
                 [self play];
@@ -786,13 +791,13 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     else if (context == VideoPlayer_PlayerItemLoadedTimeRangesContext)
     {
         float loadedDuration = [self calcLoadedDuration];
-
+        
         if (self.isScrubbing == NO && self.isPlaying && self.player.rate == 0.0f)
         {
             if (loadedDuration >= CMTimeGetSeconds(self.player.currentTime) + self.playableBufferLength)
             {
                 self.playableBufferLength *= 2;
-
+                
                 if (self.playableBufferLength > 64)
                 {
                     self.playableBufferLength = 64;
@@ -833,7 +838,7 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
         _isAtEndTime = YES;
         self.playing = NO;
     }
-        
+    
     if ([self.delegate respondsToSelector:@selector(videoPlayerDidReachEnd:)])
     {
         [self.delegate videoPlayerDidReachEnd:self];

@@ -51,6 +51,7 @@
 @property (nonatomic, assign, getter=isPlaying, readonly) BOOL playing;
 @property (nonatomic, assign, getter=isLooping) BOOL looping;
 @property (nonatomic, assign, getter=isMuted) BOOL muted;
+@property (nonatomic, assign, getter=isSeeking) BOOL seeking;
 
 - (void)setURL:(NSURL *)URL;
 - (void)setPlayerItem:(AVPlayerItem *)playerItem;
@@ -61,6 +62,7 @@
 - (void)play;
 - (void)pause;
 - (void)seekToTime:(float)time;
+- (void)seekToTime:(float)time completionHandler:(void (^)(BOOL finished))completionHandler;
 - (void)reset;
 
 // AirPlay
