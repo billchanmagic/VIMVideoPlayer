@@ -63,6 +63,8 @@
 - (void)pause;
 - (void)seekToTime:(float)time;
 - (void)seekToTime:(float)time completionHandler:(void (^)(BOOL finished))completionHandler;
+- (void)seekToTime:(float)time toleranceBefore:(CMTime)toleranceBefore toleranceAfter:(CMTime)toleranceAfter completionHandler:(void (^)(BOOL finished))completionHandler;
+- (void)seekToTimeWithNoTolerance:(float)time completionHandler:(void (^)(BOOL finished))completionHandler;
 - (void)reset;
 
 // AirPlay

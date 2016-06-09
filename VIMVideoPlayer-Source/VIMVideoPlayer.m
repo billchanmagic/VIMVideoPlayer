@@ -220,10 +220,16 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     [self.player pause];
 }
 
-- (void)seekToTime:(float)time completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0)
+- (void)seekToTime:(float)time toleranceBefore:(CMTime)toleranceBefore toleranceAfter:(CMTime)toleranceAfter completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0)
 {
     if (_seeking)
     {
+        if (completionHandler)
+        {
+            completionHandler(false);
+        }
+        else {
+        }
         return;
     }
     
@@ -231,8 +237,29 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     {
         CMTime cmTime = CMTimeMakeWithSeconds(time, self.player.currentTime.timescale);
         
-        if (CMTIME_IS_INVALID(cmTime) || self.player.currentItem.status != AVPlayerStatusReadyToPlay)
+        if (CMTIME_IS_INVALID(cmTime) || self.player.currentItem.status == AVPlayerItemStatusReadyToPlay == false)
         {
+            switch (self.player.currentItem.status) {
+                case AVPlayerItemStatusReadyToPlay:
+                    NSLog(@"status = AVPlayerItemStatusReadyToPlay");
+                    break;
+                case AVPlayerItemStatusUnknown:
+                    NSLog(@"status = AVPlayerItemStatusUnknown");
+                    break;
+                case AVPlayerItemStatusFailed:
+                    NSLog(@"status = AVPlayerItemStatusFailed");
+                    break;
+                    default:
+                    NSLog(@"status = %d", self.player.currentItem.status);
+                    break;
+            }
+
+            if (completionHandler)
+            {
+                completionHandler(false);
+            }
+            else {
+            }
             return;
         }
         
@@ -240,23 +267,57 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
         
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             
-            [self.player seekToTime:cmTime completionHandler:^(BOOL finished) {
-                
-                _isAtEndTime = NO;
-                _seeking = NO;
-                
-                if (finished)
-                {
-                    _scrubbing = NO;
-                }
-                
-                if (completionHandler)
-                {
-                    completionHandler(finished);
-                }
-            }];
+            if(toleranceBefore.value < 0 || toleranceAfter.value < 0)
+            {
+                [self.player seekToTime:cmTime completionHandler:^(BOOL finished) {
+                    
+                    _isAtEndTime = NO;
+                    _seeking = NO;
+                    
+                    if (finished)
+                    {
+                        _scrubbing = NO;
+                    }
+                    
+                    if (completionHandler)
+                    {
+                        completionHandler(finished);
+                    }
+                }];
+            }
+            else
+            {
+                [self.player seekToTime:cmTime toleranceBefore:toleranceBefore toleranceAfter:toleranceAfter completionHandler:^(BOOL finished) {
+                    
+                    _isAtEndTime = NO;
+                    _seeking = NO;
+                    
+                    if (finished)
+                    {
+                        _scrubbing = NO;
+                    }
+                    
+                    if (completionHandler)
+                    {
+                        completionHandler(finished);
+                    }
+                }];
+            }
         });
     }
+}
+
+- (void)seekToTimeWithNoTolerance:(float)time completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0)
+{
+    [self seekToTime:time toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:completionHandler];
+}
+
+
+- (void)seekToTime:(float)time completionHandler:(void (^)(BOOL finished))completionHandler NS_AVAILABLE(10_7, 5_0)
+{
+    CMTime cmTimeInvalid = CMTimeMakeWithSeconds(-1, self.player.currentTime.timescale);
+    
+    [self seekToTime:time toleranceBefore:cmTimeInvalid toleranceAfter:cmTimeInvalid completionHandler:completionHandler];
 }
 
 - (void)seekToTime:(float)time
