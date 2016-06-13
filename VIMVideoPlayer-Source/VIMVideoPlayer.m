@@ -235,7 +235,14 @@ static void *VideoPlayer_PlayerItemLoadedTimeRangesContext = &VideoPlayer_Player
     
     if (self.player)
     {
-        CMTime cmTime = CMTimeMakeWithSeconds(time, self.player.currentTime.timescale);
+/*solve the problem: timescale is 1 and can only resume to nearest 1 second*/
+        int timescale = self.player.currentTime.timescale;
+        if (timescale == 1)
+        {
+            timescale =self.player.currentTime.timescale * 100;
+        }
+        
+        CMTime cmTime = CMTimeMakeWithSeconds(time, timescale);
         
         if (CMTIME_IS_INVALID(cmTime) || self.player.currentItem.status == AVPlayerItemStatusReadyToPlay == false)
         {
